@@ -353,6 +353,22 @@
     .confirm-box p  { font-size:14px; color:var(--gray-500); margin-bottom:20px; }
     .confirm-acts   { display:flex; gap:8px; justify-content:flex-end; }
 
+    /* ── Multi-field (phones / emails) ──────────────────── */
+    .mf-group { display:flex; flex-direction:column; gap:6px; }
+    .mf-row   { display:flex; gap:6px; align-items:center; }
+    .mf-label { width:100px; flex-shrink:0; padding:8px 8px; border:1px solid var(--gray-300); border-radius:6px; font-size:13px; background:white; color:var(--gray-600); outline:none; cursor:pointer; }
+    .mf-label:focus { border-color:var(--green); }
+    .mf-val   { flex:1; padding:8px 10px; border:1px solid var(--gray-300); border-radius:6px; font-size:14px; font-family:inherit; color:var(--gray-800); background:white; outline:none; }
+    .mf-val:focus { border-color:var(--green); box-shadow:0 0 0 3px rgba(46,125,107,.1); }
+    .mf-remove { background:none; border:none; color:var(--gray-400); cursor:pointer; font-size:18px; line-height:1; padding:4px; border-radius:4px; flex-shrink:0; }
+    .mf-remove:hover { color:#DC2626; background:var(--gray-100); }
+    .mf-add { display:inline-flex; align-items:center; gap:4px; font-size:13px; color:var(--green); background:none; border:none; cursor:pointer; padding:2px 0; font-weight:500; }
+    .mf-add:hover { color:var(--green-hover); }
+
+    .contact-detail-multi { display:flex; flex-direction:column; gap:4px; }
+    .contact-detail-entry { display:flex; align-items:baseline; gap:6px; }
+    .contact-detail-lbl   { font-size:10px; font-weight:600; text-transform:uppercase; color:var(--gray-400); background:var(--gray-100); padding:1px 5px; border-radius:3px; white-space:nowrap; }
+
     /* ── Mobile ──────────────────────────────────────────── */
     @media (max-width: 700px) {
       main { padding: 14px 16px; }
@@ -547,6 +563,53 @@ function dateStatus(d) {
 
 function isOverdueOrToday(d) { const s = dateStatus(d); return s === 'overdue' || s === 'due-today'; }
 
+/* migrate old single-string phone/email to array format */
+function migrateContact(c) {
+  if (!Array.isArray(c.phones)) {
+    c.phones = c.phone ? [{ label: 'personal', value: c.phone }] : [];
+  }
+  if (!Array.isArray(c.emails)) {
+    c.emails = c.email ? [{ label: 'personal', value: c.email }] : [];
+  }
+  return c;
+}
+
+function mfRowHTML(type, label, value) {
+  const labelOpts = ['personal','work','other'].map(l =>
+    `<option value="${l}"${label===l?' selected':''}>${l.charAt(0).toUpperCase()+l.slice(1)}</option>`).join('');
+  const inputType = type === 'phone' ? 'tel' : 'email';
+  const placeholder = type === 'phone' ? '(555) 000-0000' : 'name@example.com';
+  return `
+    <div class="mf-row">
+      <select class="mf-label">${labelOpts}</select>
+      <input type="${inputType}" class="mf-val" placeholder="${placeholder}" value="${esc(value)}">
+      <button type="button" class="mf-remove" onclick="mfRemove(this)" title="Remove">×</button>
+    </div>`;
+}
+
+function mfAdd(groupId, type) {
+  const group = document.getElementById(groupId);
+  const addBtn = group.querySelector('.mf-add');
+  const div = document.createElement('div');
+  div.innerHTML = mfRowHTML(type, 'personal', '');
+  group.insertBefore(div.firstElementChild, addBtn);
+  div.querySelector && group.querySelector('.mf-row:last-of-type .mf-val')?.focus();
+}
+
+function mfRemove(btn) {
+  const row = btn.closest('.mf-row');
+  const group = row.parentElement;
+  // Keep at least one row
+  if (group.querySelectorAll('.mf-row').length > 1) row.remove();
+  else { row.querySelector('.mf-val').value = ''; }
+}
+
+function mfRead(groupId) {
+  return [...document.getElementById(groupId).querySelectorAll('.mf-row')]
+    .map(row => ({ label: row.querySelector('.mf-label').value, value: row.querySelector('.mf-val').value.trim() }))
+    .filter(x => x.value);
+}
+
 function responseChip(r) {
   if (!r || r === 'pending') return '';
   const cfg = { responded: ['Responded','#059669','#ECFDF5'], no_response: ['No Response','#DC2626','#FEF2F2'] };
@@ -597,7 +660,7 @@ const GH = {
       if (!r.ok) { setSyncStatus('error'); return null; }
       const j = await r.json();
       this.sha = j.sha;
-      return JSON.parse(this.b64dec(j.content));
+      return JSON.parse(this.b64dec(j.content)).map(migrateContact);
     } catch (e) {
       setSyncStatus('error');
       return null;
@@ -671,7 +734,7 @@ function setSyncStatus(state) {
 let contacts = (() => {
   try {
     const r = JSON.parse(localStorage.getItem(STORE_KEY));
-    return Array.isArray(r) ? r : null;
+    return Array.isArray(r) ? r.map(migrateContact) : null;
   } catch { return null; }
 })() || [];
 
@@ -815,8 +878,18 @@ const App = {
             ${df('Role / Title', c.role)}
             ${df('Organization', c.organization)}
             ${df('Location', c.location)}
-            ${df('Phone', c.phone)}
-            ${df('Email', c.email)}
+            <div class="df">
+              <div class="dl">Phone</div>
+              ${c.phones && c.phones.length
+                ? `<div class="contact-detail-multi">${c.phones.map(p=>`<div class="contact-detail-entry"><span class="contact-detail-lbl">${esc(p.label)}</span><span class="dv">${esc(p.value)}</span></div>`).join('')}</div>`
+                : '<div class="dv empty">—</div>'}
+            </div>
+            <div class="df">
+              <div class="dl">Email</div>
+              ${c.emails && c.emails.length
+                ? `<div class="contact-detail-multi">${c.emails.map(e=>`<div class="contact-detail-entry"><span class="contact-detail-lbl">${esc(e.label)}</span><span class="dv">${esc(e.value)}</span></div>`).join('')}</div>`
+                : '<div class="dv empty">—</div>'}
+            </div>
             ${df('LinkedIn', c.linkedin, true)}
           </div>
         </div>
@@ -932,13 +1005,19 @@ const App = {
               <label class="fl">Role / Title</label>
               <input class="fi" name="role" value="${esc(c.role||'')}" placeholder="e.g. CEO, Physician">
             </div>
-            <div class="fg">
+            <div class="fg full">
               <label class="fl">Phone</label>
-              <input class="fi" type="tel" name="phone" value="${esc(c.phone||'')}" placeholder="(555) 000-0000">
+              <div class="mf-group" id="phonesGroup">
+                ${(c.phones && c.phones.length ? c.phones : [{label:'personal',value:''}]).map(p => mfRowHTML('phone', p.label, p.value)).join('')}
+                <button type="button" class="mf-add" onclick="mfAdd('phonesGroup','phone')">+ Add phone</button>
+              </div>
             </div>
-            <div class="fg">
+            <div class="fg full">
               <label class="fl">Email</label>
-              <input class="fi" type="email" name="email" value="${esc(c.email||'')}" placeholder="name@example.com">
+              <div class="mf-group" id="emailsGroup">
+                ${(c.emails && c.emails.length ? c.emails : [{label:'personal',value:''}]).map(e => mfRowHTML('email', e.label, e.value)).join('')}
+                <button type="button" class="mf-add" onclick="mfAdd('emailsGroup','email')">+ Add email</button>
+              </div>
             </div>
             <div class="fg full">
               <label class="fl">LinkedIn URL</label>
@@ -1011,8 +1090,8 @@ const App = {
       c.fullName      = fd.get('fullName').trim();
       c.organization  = fd.get('organization').trim();
       c.role          = fd.get('role').trim();
-      c.phone         = fd.get('phone').trim();
-      c.email         = fd.get('email').trim();
+      c.phones        = mfRead('phonesGroup');
+      c.emails        = mfRead('emailsGroup');
       c.linkedin      = fd.get('linkedin').trim();
       c.location      = fd.get('location').trim();
       c.tier          = fd.get('tier');
@@ -1030,8 +1109,8 @@ const App = {
         fullName:      fd.get('fullName').trim(),
         organization:  fd.get('organization').trim(),
         role:          fd.get('role').trim(),
-        phone:         fd.get('phone').trim(),
-        email:         fd.get('email').trim(),
+        phones:        mfRead('phonesGroup'),
+        emails:        mfRead('emailsGroup'),
         linkedin:      fd.get('linkedin').trim(),
         location:      fd.get('location').trim(),
         tier:          fd.get('tier'),
