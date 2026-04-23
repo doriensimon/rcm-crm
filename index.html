@@ -900,6 +900,16 @@ const App = {
               <div class="dl">Last Contacted</div>
               <div class="dv ${!c.lastContacted ? 'empty' : ''}">${c.lastContacted ? fmtDate(c.lastContacted) : '—'}</div>
             </div>
+            <div class="df full">
+              <div class="dl">Contact Method</div>
+              <div class="dv" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px">
+                ${['email','phone','text','in_person','linkedin','other'].map(v => {
+                  const labels = {email:'Email',phone:'Phone',text:'Text',in_person:'In Person',linkedin:'LinkedIn',other:'Other'};
+                  const active = (c.contactMethod||'') === v;
+                  return `<button onclick="App.setContactMethod('${esc(c.id)}','${v}')" style="padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid ${active ? 'var(--green)' : 'transparent'};background:${active ? 'rgba(46,125,107,.1)' : 'var(--gray-100)'};color:${active ? 'var(--green)' : 'var(--gray-400)'};transition:all .15s">${labels[v]}</button>`;
+                }).join('')}
+              </div>
+            </div>
             <div class="df">
               <div class="dl">Response</div>
               <div class="dv" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px">
@@ -936,6 +946,14 @@ const App = {
         <button class="btn btn-primary btn-sm" onclick="App.openEdit('${esc(c.id)}')">Edit</button>
       </div>`;
     this.openPanel();
+  },
+
+  setContactMethod(id, value) {
+    const c = contacts.find(x => x.id === id);
+    if (!c) return;
+    c.contactMethod = c.contactMethod === value ? '' : value; // tap again to deselect
+    save();
+    this.openDetail(id);
   },
 
   setResponse(id, value) {
@@ -1048,6 +1066,16 @@ const App = {
               <input class="fi" type="date" name="lastContacted" value="${esc(c.lastContacted||'')}">
             </div>
             <div class="fg">
+              <label class="fl">Contact Method</label>
+              <select class="fs" name="contactMethod">
+                <option value="">— Select —</option>
+                ${['email','phone','text','in_person','linkedin','other'].map(v => {
+                  const l = {email:'Email',phone:'Phone',text:'Text',in_person:'In Person',linkedin:'LinkedIn',other:'Other'};
+                  return `<option value="${v}"${c.contactMethod===v?' selected':''}>${l[v]}</option>`;
+                }).join('')}
+              </select>
+            </div>
+            <div class="fg">
               <label class="fl">Response</label>
               <select class="fs" name="outreachResponse">
                 <option value="pending"  ${(c.outreachResponse||'pending')==='pending'   ? 'selected':''}>Pending</option>
@@ -1099,6 +1127,7 @@ const App = {
       c.serviceFit    = sf;
       c.howWeKnow     = fd.get('howWeKnow').trim();
       c.lastContacted     = fd.get('lastContacted');
+      c.contactMethod     = fd.get('contactMethod');
       c.nextFollowup      = fd.get('nextFollowup');
       c.outreachResponse  = fd.get('outreachResponse');
       save(); this.renderAll(); this.closePanel(); toast('Contact updated.');
@@ -1119,6 +1148,7 @@ const App = {
         howWeKnow:     fd.get('howWeKnow').trim(),
         notes:         note ? [{ text: note, timestamp: new Date().toISOString() }] : [],
         lastContacted:    fd.get('lastContacted'),
+        contactMethod:    fd.get('contactMethod'),
         nextFollowup:     fd.get('nextFollowup'),
         outreachResponse: fd.get('outreachResponse') || 'pending',
         createdAt:     new Date().toISOString(),
