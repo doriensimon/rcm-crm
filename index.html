@@ -547,6 +547,14 @@ function dateStatus(d) {
 
 function isOverdueOrToday(d) { const s = dateStatus(d); return s === 'overdue' || s === 'due-today'; }
 
+function responseChip(r) {
+  if (!r || r === 'pending') return '';
+  const cfg = { responded: ['Responded','#059669','#ECFDF5'], no_response: ['No Response','#DC2626','#FEF2F2'] };
+  const [l, c, bg] = cfg[r] || [];
+  if (!l) return '';
+  return `<span style="display:inline-block;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:600;background:${bg};color:${c};margin-left:4px">${l}</span>`;
+}
+
 function toast(msg, type='ok') {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -723,7 +731,7 @@ const App = {
           <td class="col-role" style="color:var(--gray-600)">${esc(c.role)||'<span class="td-muted">—</span>'}</td>
           <td><span class="tier ${t.cls}">${t.short}</span></td>
           <td><span class="badge s-${c.status}">${st.label}</span></td>
-          <td style="color:var(--gray-600);font-size:13px">${c.lastContacted ? fmtDate(c.lastContacted) : '<span class="td-muted">—</span>'}</td>
+          <td style="font-size:13px">${c.lastContacted ? `<span style="color:var(--gray-600)">${fmtDate(c.lastContacted)}</span> ${responseChip(c.outreachResponse)}` : '<span class="td-muted">—</span>'}</td>
           <td style="font-size:13px">${fu}</td>
           <td class="col-svc">${svcHtml||'<span class="td-muted">—</span>'}</td>
         </tr>`;
@@ -815,7 +823,20 @@ const App = {
         <div class="ds">
           <div class="ds-title">Pipeline</div>
           <div class="dg">
-            ${df('Last Contacted', c.lastContacted ? fmtDate(c.lastContacted) : '')}
+            <div class="df">
+              <div class="dl">Last Contacted</div>
+              <div class="dv ${!c.lastContacted ? 'empty' : ''}">${c.lastContacted ? fmtDate(c.lastContacted) : '—'}</div>
+            </div>
+            <div class="df">
+              <div class="dl">Response</div>
+              <div class="dv" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px">
+                ${['responded','no_response','pending'].map(v => {
+                  const cfg = {responded:{l:'Responded',c:'#059669',bg:'#ECFDF5'}, no_response:{l:'No Response',c:'#DC2626',bg:'#FEF2F2'}, pending:{l:'Pending',c:'#6B7280',bg:'#F3F4F6'}};
+                  const active = (c.outreachResponse||'pending') === v;
+                  return `<button onclick="App.setResponse('${esc(c.id)}','${v}')" style="padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;border:2px solid ${active ? cfg[v].c : 'transparent'};background:${active ? cfg[v].bg : 'var(--gray-100)'};color:${active ? cfg[v].c : 'var(--gray-400)'};transition:all .15s">${cfg[v].l}</button>`;
+                }).join('')}
+              </div>
+            </div>
             <div class="df"><div class="dl">Next Follow-up</div><div class="dv ${c.nextFollowup ? ds : 'empty'}">${c.nextFollowup ? fmtDate(c.nextFollowup) : '—'}</div></div>
           </div>
         </div>
@@ -842,6 +863,16 @@ const App = {
         <button class="btn btn-primary btn-sm" onclick="App.openEdit('${esc(c.id)}')">Edit</button>
       </div>`;
     this.openPanel();
+  },
+
+  setResponse(id, value) {
+    const c = contacts.find(x => x.id === id);
+    if (!c) return;
+    c.outreachResponse = value;
+    save();
+    this.renderAll();
+    // Re-open detail to refresh the toggle buttons
+    this.openDetail(id);
   },
 
   addNote(id) {
@@ -938,6 +969,14 @@ const App = {
               <input class="fi" type="date" name="lastContacted" value="${esc(c.lastContacted||'')}">
             </div>
             <div class="fg">
+              <label class="fl">Response</label>
+              <select class="fs" name="outreachResponse">
+                <option value="pending"  ${(c.outreachResponse||'pending')==='pending'   ? 'selected':''}>Pending</option>
+                <option value="responded"${c.outreachResponse==='responded'              ? 'selected':''}>Responded</option>
+                <option value="no_response"${c.outreachResponse==='no_response'          ? 'selected':''}>No Response</option>
+              </select>
+            </div>
+            <div class="fg">
               <label class="fl">Next Follow-up</label>
               <input class="fi" type="date" name="nextFollowup" value="${esc(c.nextFollowup||'')}">
             </div>
@@ -980,8 +1019,9 @@ const App = {
       c.status        = fd.get('status');
       c.serviceFit    = sf;
       c.howWeKnow     = fd.get('howWeKnow').trim();
-      c.lastContacted = fd.get('lastContacted');
-      c.nextFollowup  = fd.get('nextFollowup');
+      c.lastContacted     = fd.get('lastContacted');
+      c.nextFollowup      = fd.get('nextFollowup');
+      c.outreachResponse  = fd.get('outreachResponse');
       save(); this.renderAll(); this.closePanel(); toast('Contact updated.');
     } else {
       const note = fd.get('initNote')?.trim();
@@ -999,8 +1039,9 @@ const App = {
         serviceFit:    sf,
         howWeKnow:     fd.get('howWeKnow').trim(),
         notes:         note ? [{ text: note, timestamp: new Date().toISOString() }] : [],
-        lastContacted: fd.get('lastContacted'),
-        nextFollowup:  fd.get('nextFollowup'),
+        lastContacted:    fd.get('lastContacted'),
+        nextFollowup:     fd.get('nextFollowup'),
+        outreachResponse: fd.get('outreachResponse') || 'pending',
         createdAt:     new Date().toISOString(),
       });
       save(); this.renderAll(); this.closePanel(); toast('Contact added!');
