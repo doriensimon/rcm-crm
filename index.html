@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RCM Agency CRM</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:        #1B2B3A;
+      --navy-light:  #243447;
+      --green:       #2E7D6B;
+      --green-hover: #3a9b85;
+      --white:       #ffffff;
+      --gray-50:     #f9fafb;
+      --gray-100:    #f3f4f6;
+      --gray-200:    #e5e7eb;
+      --gray-300:    #d1d5db;
+      --gray-400:    #9ca3af;
+      --gray-500:    #6b7280;
+      --gray-600:    #4b5563;
+      --gray-700:    #374151;
+      --gray-800:    #1f2937;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-800);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ─────────────────────────────────────────── */
+    header {
+      background: var(--navy);
+      color: white;
+      padding: 0 24px;
+      height: 62px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(0,0,0,.35);
+    }
+
+    .header-brand { display: flex; align-items: center; gap: 12px; }
+
+    .header-logo {
+      width: 34px; height: 34px;
+      background: var(--green);
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 13px; letter-spacing: -.5px;
+    }
+
+    .header-title   { font-size: 17px; font-weight: 600; }
+    .header-sub     { font-size: 11px; color: rgba(255,255,255,.45); margin-top: 1px; }
+
+    .header-right { display: flex; align-items: center; gap: 10px; }
+
+    /* Sync indicator */
+    .sync-badge {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 11px; color: rgba(255,255,255,.55);
+      padding: 4px 8px; border-radius: 999px;
+      background: rgba(255,255,255,.06);
+    }
+    .sync-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--gray-400);
+      transition: background .3s;
+    }
+    .sync-dot.synced   { background: #10B981; }
+    .sync-dot.syncing  { background: #F59E0B; animation: pulse .8s infinite; }
+    .sync-dot.error    { background: #EF4444; }
+    .sync-dot.notoken  { background: var(--gray-500); }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    .btn-icon {
+      background: rgba(255,255,255,.1);
+      border: none; color: white; cursor: pointer;
+      width: 32px; height: 32px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; transition: background .12s;
+    }
+    .btn-icon:hover { background: rgba(255,255,255,.2); }
+
+    /* ── Buttons ─────────────────────────────────────────── */
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px; border: none; cursor: pointer;
+      font-size: 14px; font-weight: 500;
+      display: inline-flex; align-items: center; gap: 6px;
+      transition: background .12s;
+    }
+    .btn-primary   { background: var(--green); color: white; }
+    .btn-primary:hover { background: var(--green-hover); }
+    .btn-secondary { background: white; color: var(--gray-700); border: 1px solid var(--gray-300); }
+    .btn-secondary:hover { background: var(--gray-100); }
+    .btn-danger    { background: #EF4444; color: white; }
+    .btn-danger:hover  { background: #DC2626; }
+    .btn-sm { padding: 5px 11px; font-size: 13px; }
+
+    /* ── Sync setup banner ───────────────────────────────── */
+    .sync-banner {
+      background: linear-gradient(90deg, #1B2B3A, #243447);
+      color: white; padding: 10px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; flex-wrap: wrap;
+    }
+    .sync-banner p { font-size: 13px; color: rgba(255,255,255,.75); }
+    .sync-banner strong { color: white; }
+
+    /* ── Dashboard bar ───────────────────────────────────── */
+    .dash-bar {
+      background: var(--navy-light);
+      color: white;
+      padding: 10px 24px;
+      display: flex; gap: 20px; flex-wrap: wrap; align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .dash-stat { display: flex; flex-direction: column; align-items: center; min-width: 56px; }
+    .dash-val  { font-size: 19px; font-weight: 700; line-height: 1; }
+    .dash-lbl  { font-size: 10px; color: rgba(255,255,255,.5); text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
+    .dash-sep  { width: 1px; height: 30px; background: rgba(255,255,255,.12); }
+    .dash-alert {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(239,68,68,.15);
+      border: 1px solid rgba(239,68,68,.3);
+      border-radius: 6px; padding: 6px 12px; margin-left: auto; cursor: pointer;
+    }
+    .dash-alert-dot { width: 8px; height: 8px; background: #EF4444; border-radius: 50%; }
+    .dash-alert span { font-size: 13px; }
+
+    /* ── Main ────────────────────────────────────────────── */
+    main { flex: 1; padding: 20px 24px; max-width: 1440px; width: 100%; margin: 0 auto; }
+
+    /* ── Controls ────────────────────────────────────────── */
+    .controls { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+    .search-wrap { position: relative; flex: 1; min-width: 180px; }
+    .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--gray-400); font-size: 15px; pointer-events: none; }
+    .search-input {
+      width: 100%; padding: 8px 12px 8px 32px;
+      border: 1px solid var(--gray-300); border-radius: 6px;
+      font-size: 14px; background: white; outline: none;
+    }
+    .search-input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(46,125,107,.1); }
+    .filter-sel {
+      padding: 8px 12px; border: 1px solid var(--gray-300);
+      border-radius: 6px; font-size: 14px; background: white;
+      color: var(--gray-700); cursor: pointer; outline: none;
+    }
+    .filter-sel:focus { border-color: var(--green); }
+
+    /* ── Table ───────────────────────────────────────────── */
+    .table-card {
+      background: white; border-radius: 10px;
+      border: 1px solid var(--gray-200);
+      overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.05);
+    }
+    .crm-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .crm-table thead { background: var(--gray-50); }
+    .crm-table th {
+      padding: 10px 14px; text-align: left;
+      font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .5px;
+      color: var(--gray-500); border-bottom: 1px solid var(--gray-200);
+      white-space: nowrap;
+    }
+    .crm-table td { padding: 11px 14px; border-bottom: 1px solid var(--gray-100); vertical-align: middle; }
+    .crm-table tbody tr { cursor: pointer; transition: background .1s; }
+    .crm-table tbody tr:hover { background: #f0faf8; }
+    .crm-table tbody tr:last-child td { border-bottom: none; }
+    .td-name { font-weight: 600; color: var(--navy); }
+    .td-org  { color: var(--gray-500); font-size: 12px; margin-top: 2px; }
+    .td-muted { color: var(--gray-300); }
+
+    /* ── Badges ──────────────────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 8px; border-radius: 999px;
+      font-size: 11px; font-weight: 600; white-space: nowrap;
+    }
+    .badge::before { content:''; width:6px; height:6px; border-radius:50%; background:currentColor; }
+
+    .s-new                  { background:#F3F4F6; color:#6B7280; }
+    .s-reached_out          { background:#EFF6FF; color:#2563EB; }
+    .s-conversation_started { background:#FFFBEB; color:#D97706; }
+    .s-meeting_scheduled    { background:#F5F3FF; color:#7C3AED; }
+    .s-proposal_sent        { background:#FFF7ED; color:#C2410C; }
+    .s-client               { background:#ECFDF5; color:#059669; }
+    .s-not_interested       { background:#FEF2F2; color:#DC2626; }
+
+    .tier { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:500; white-space:nowrap; }
+    .t1 { background:#DCFCE7; color:#166534; }
+    .t2 { background:#FEF9C3; color:#854D0E; }
+    .t3 { background:#F1F5F9; color:#475569; }
+    .t4 { background:#EDE9FE; color:#5B21B6; }
+
+    .svc { display:inline-block; margin:1px; padding:2px 6px; border-radius:3px; background:rgba(46,125,107,.1); color:var(--green); font-size:10px; font-weight:500; }
+
+    /* ── Dates ───────────────────────────────────────────── */
+    .overdue   { color:#DC2626; font-weight:600; }
+    .due-today { color:#D97706; font-weight:600; }
+
+    /* ── Empty state ─────────────────────────────────────── */
+    .empty { text-align:center; padding:56px 24px; color:var(--gray-400); }
+    .empty-icon { font-size:38px; margin-bottom:12px; }
+    .empty h3 { font-size:16px; color:var(--gray-600); margin-bottom:6px; }
+    .empty p  { font-size:14px; }
+
+    /* ── Slide-over panel ────────────────────────────────── */
+    .overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,.42);
+      z-index:200; display:none; align-items:flex-start; justify-content:flex-end;
+    }
+    .overlay.open { display:flex; }
+    .panel {
+      background:white; width:100%; max-width:560px; height:100vh;
+      overflow-y:auto; box-shadow:-6px 0 24px rgba(0,0,0,.18);
+      display:flex; flex-direction:column;
+    }
+    .ph {
+      background:var(--navy); color:white; padding:16px 20px;
+      display:flex; align-items:center; justify-content:space-between;
+      position:sticky; top:0; z-index:10;
+    }
+    .ph-title { font-size:16px; font-weight:600; }
+    .ph-sub   { font-size:12px; color:rgba(255,255,255,.5); margin-top:2px; }
+    .ph-close {
+      background:none; border:none; color:rgba(255,255,255,.65);
+      cursor:pointer; font-size:20px; line-height:1; padding:4px 6px; border-radius:4px;
+    }
+    .ph-close:hover { color:white; background:rgba(255,255,255,.12); }
+    .pb { padding:20px; flex:1; }
+    .pf {
+      padding:14px 20px; border-top:1px solid var(--gray-200);
+      display:flex; gap:8px; justify-content:flex-end; background:var(--gray-50);
+    }
+
+    /* ── Detail ──────────────────────────────────────────── */
+    .ds { margin-bottom:20px; }
+    .ds-title {
+      font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.5px;
+      color:var(--gray-400); margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid var(--gray-100);
+    }
+    .dg { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .df { display:flex; flex-direction:column; gap:3px; }
+    .df.full { grid-column:1/-1; }
+    .dl { font-size:11px; color:var(--gray-400); font-weight:500; text-transform:uppercase; letter-spacing:.3px; }
+    .dv { font-size:14px; color:var(--gray-800); word-break:break-word; }
+    .dv a { color:var(--green); text-decoration:none; }
+    .dv a:hover { text-decoration:underline; }
+    .dv.empty { color:var(--gray-300); font-style:italic; }
+
+    /* ── Notes ───────────────────────────────────────────── */
+    .notes-list { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+    .note { background:var(--gray-50); border-radius:6px; padding:10px 12px; border-left:3px solid var(--green); }
+    .note-ts  { font-size:11px; color:var(--gray-400); margin-bottom:4px; }
+    .note-txt { font-size:14px; color:var(--gray-700); white-space:pre-wrap; line-height:1.5; }
+    .note-add textarea {
+      width:100%; min-height:76px; padding:8px 10px;
+      border:1px solid var(--gray-300); border-radius:6px;
+      font-size:14px; font-family:inherit; resize:vertical;
+      outline:none; color:var(--gray-700); margin-bottom:8px;
+    }
+    .note-add textarea:focus { border-color:var(--green); box-shadow:0 0 0 3px rgba(46,125,107,.1); }
+
+    /* ── Form ────────────────────────────────────────────── */
+    .fg { margin-bottom:16px; }
+    .fl { display:block; font-size:13px; font-weight:500; color:var(--gray-600); margin-bottom:5px; }
+    .fl .req { color:#EF4444; margin-left:2px; }
+    .fi, .fs, .ft {
+      width:100%; padding:8px 12px;
+      border:1px solid var(--gray-300); border-radius:6px;
+      font-size:14px; font-family:inherit; color:var(--gray-800);
+      background:white; outline:none;
+    }
+    .fi:focus, .fs:focus, .ft:focus { border-color:var(--green); box-shadow:0 0 0 3px rgba(46,125,107,.1); }
+    .ft { min-height:80px; resize:vertical; }
+    .fgrid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .fg.full { grid-column:1/-1; }
+
+    /* ── Checkboxes ──────────────────────────────────────── */
+    .cb-group { display:flex; flex-wrap:wrap; gap:8px; }
+    .cb-item {
+      display:flex; align-items:center; gap:6px; cursor:pointer;
+      padding:5px 10px; border:1px solid var(--gray-300); border-radius:6px;
+      font-size:13px; color:var(--gray-600); transition:all .1s; user-select:none;
+    }
+    .cb-item input { display:none; }
+    .cb-item.on { background:rgba(46,125,107,.08); border-color:var(--green); color:var(--green); }
+
+    /* ── Settings panel ──────────────────────────────────── */
+    .settings-section {
+      margin-bottom: 24px;
+      padding: 16px;
+      background: var(--gray-50);
+      border-radius: 8px;
+      border: 1px solid var(--gray-200);
+    }
+    .settings-section h3 { font-size:14px; font-weight:600; color:var(--gray-800); margin-bottom:4px; }
+    .settings-section p  { font-size:13px; color:var(--gray-500); margin-bottom:12px; line-height:1.5; }
+    .settings-section ol { font-size:13px; color:var(--gray-600); padding-left:18px; margin-bottom:12px; line-height:1.8; }
+    .settings-section code {
+      background: var(--gray-200); padding: 1px 5px; border-radius: 3px;
+      font-family: monospace; font-size: 12px;
+    }
+    .token-row { display:flex; gap:8px; align-items:center; }
+    .token-input {
+      flex:1; padding:8px 12px;
+      border:1px solid var(--gray-300); border-radius:6px;
+      font-size:14px; font-family:monospace; color:var(--gray-800);
+      background:white; outline:none;
+    }
+    .token-input:focus { border-color:var(--green); box-shadow:0 0 0 3px rgba(46,125,107,.1); }
+    .connected-badge {
+      display:inline-flex; align-items:center; gap:6px;
+      padding:4px 10px; background:#ECFDF5; color:#059669;
+      border-radius:6px; font-size:13px; font-weight:500;
+    }
+
+    /* ── Toast ───────────────────────────────────────────── */
+    .toast {
+      position:fixed; bottom:24px; right:24px;
+      background:var(--navy); color:white;
+      padding:10px 16px; border-radius:8px;
+      font-size:14px; box-shadow:0 4px 16px rgba(0,0,0,.2);
+      z-index:1000; transform:translateY(80px); opacity:0; transition:all .3s;
+    }
+    .toast.show { transform:translateY(0); opacity:1; }
+    .toast.ok  { border-left:4px solid var(--green); }
+    .toast.err { border-left:4px solid #EF4444; }
+
+    /* ── Confirm ─────────────────────────────────────────── */
+    .confirm-wrap {
+      position:fixed; inset:0; background:rgba(0,0,0,.5);
+      z-index:500; display:none; align-items:center; justify-content:center;
+    }
+    .confirm-wrap.open { display:flex; }
+    .confirm-box {
+      background:white; border-radius:10px; padding:24px;
+      max-width:360px; width:90%;
+      box-shadow:0 20px 60px rgba(0,0,0,.2);
+    }
+    .confirm-box h3 { font-size:16px; margin-bottom:8px; }
+    .confirm-box p  { font-size:14px; color:var(--gray-500); margin-bottom:20px; }
+    .confirm-acts   { display:flex; gap:8px; justify-content:flex-end; }
+
+    /* ── Mobile ──────────────────────────────────────────── */
+    @media (max-width: 700px) {
+      main { padding: 14px 16px; }
+      .dash-bar { padding: 10px 16px; }
+      .dash-alert { margin-left: 0; width: 100%; }
+      header { padding: 0 16px; }
+      .header-sub { display: none; }
+      .col-role, .col-svc { display: none; }
+      .crm-table td, .crm-table th { padding: 8px 10px; }
+      .panel { max-width: 100%; }
+      .fgrid { grid-template-columns: 1fr; }
+      .fg.full { grid-column: 1; }
+      .dg { grid-template-columns: 1fr; }
+      .sync-badge span { display: none; }
+      .sync-banner { padding: 10px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══════════════════════════════════════════ -->
+<header>
+  <div class="header-brand">
+    <div class="header-logo">RCM</div>
+    <div>
+      <div class="header-title">Agency CRM</div>
+      <div class="header-sub">RCM Consulting</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="sync-badge" id="syncBadge">
+      <div class="sync-dot notoken" id="syncDot"></div>
+      <span id="syncLabel">Not synced</span>
+    </div>
+    <button class="btn-icon" onclick="App.openSettings()" title="Sync settings">⚙</button>
+    <button class="btn btn-primary" onclick="App.openAdd()">+ Add Contact</button>
+  </div>
+</header>
+
+<!-- ═══ SYNC SETUP BANNER ══════════════════════════════════ -->
+<div class="sync-banner" id="syncBanner" style="display:none">
+  <p><strong>Connect GitHub sync</strong> — access your CRM from any device, including your phone.</p>
+  <button class="btn btn-primary btn-sm" onclick="App.openSettings()">Connect →</button>
+</div>
+
+<!-- ═══ DASHBOARD ══════════════════════════════════════════ -->
+<div class="dash-bar" id="dashBar"></div>
+
+<!-- ═══ MAIN ════════════════════════════════════════════════ -->
+<main>
+  <div class="controls">
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input id="q" class="search-input" type="text" placeholder="Search name or organization…" oninput="App.filter()">
+    </div>
+    <select id="fStatus" class="filter-sel" onchange="App.filter()">
+      <option value="">All Statuses</option>
+      <option value="new">New</option>
+      <option value="reached_out">Reached Out</option>
+      <option value="conversation_started">Conversation Started</option>
+      <option value="meeting_scheduled">Meeting Scheduled</option>
+      <option value="proposal_sent">Proposal Sent</option>
+      <option value="client">Client</option>
+      <option value="not_interested">Not Interested</option>
+    </select>
+    <select id="fTier" class="filter-sel" onchange="App.filter()">
+      <option value="">All Tiers</option>
+      <option value="tier1">Tier 1 – Warm</option>
+      <option value="tier2">Tier 2 – Lukewarm</option>
+      <option value="tier3">Tier 3 – Cold</option>
+      <option value="tier4">Tier 4 – Partner</option>
+    </select>
+    <select id="fSvc" class="filter-sel" onchange="App.filter()">
+      <option value="">All Services</option>
+      <option value="denials_analysis">Denials Analysis</option>
+      <option value="rcm_process_audit">RCM Process Audit</option>
+      <option value="fractional_advisory">Fractional Advisory</option>
+      <option value="technology_vetting">Technology Vetting</option>
+      <option value="fractional_se">Fractional SE</option>
+    </select>
+  </div>
+
+  <div class="table-card">
+    <table class="crm-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th class="col-role">Role</th>
+          <th>Tier</th>
+          <th>Status</th>
+          <th>Last Contact</th>
+          <th>Next Follow-up</th>
+          <th class="col-svc">Service Fit</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div id="emptyState" class="empty" style="display:none">
+      <div class="empty-icon">👥</div>
+      <h3>No contacts found</h3>
+      <p>Try adjusting your filters, or add a new contact.</p>
+    </div>
+  </div>
+</main>
+
+<!-- ═══ SLIDE-OVER PANEL ════════════════════════════════════ -->
+<div class="overlay" id="overlay" onclick="App.overlayClick(event)">
+  <div class="panel" id="panel"></div>
+</div>
+
+<!-- ═══ CONFIRM DIALOG ══════════════════════════════════════ -->
+<div class="confirm-wrap" id="confirmWrap">
+  <div class="confirm-box">
+    <h3 id="confirmTitle">Confirm</h3>
+    <p id="confirmMsg"></p>
+    <div class="confirm-acts">
+      <button class="btn btn-secondary" onclick="App.closeConfirm()">Cancel</button>
+      <button class="btn btn-danger" id="confirmOk">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TOAST ════════════════════════════════════════════════ -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ──────────────────────────────────────────────────────
+   CONSTANTS
+────────────────────────────────────────────────────── */
+const STORE_KEY   = 'rcm_crm_v1';
+const TOKEN_KEY   = 'rcm_gh_token';
+const GH_OWNER    = 'doriensimon';
+const GH_REPO     = 'rcm-crm';
+const GH_FILE     = 'data.json';
+const GH_BRANCH   = 'main';
+
+const STATUS = {
+  new:                   { label: 'New',                  color: '#9CA3AF' },
+  reached_out:           { label: 'Reached Out',          color: '#3B82F6' },
+  conversation_started:  { label: 'Conversation Started', color: '#F59E0B' },
+  meeting_scheduled:     { label: 'Meeting Scheduled',    color: '#8B5CF6' },
+  proposal_sent:         { label: 'Proposal Sent',        color: '#F97316' },
+  client:                { label: 'Client',               color: '#10B981' },
+  not_interested:        { label: 'Not Interested',       color: '#EF4444' },
+};
+
+const TIERS = {
+  tier1: { label: 'Tier 1 – Warm',      short: 'T1 Warm',     cls: 't1' },
+  tier2: { label: 'Tier 2 – Lukewarm',  short: 'T2 Lukewarm', cls: 't2' },
+  tier3: { label: 'Tier 3 – Cold',      short: 'T3 Cold',     cls: 't3' },
+  tier4: { label: 'Tier 4 – Partner',   short: 'T4 Partner',  cls: 't4' },
+};
+
+const SERVICES = [
+  { v: 'denials_analysis',    l: 'Denials Analysis' },
+  { v: 'rcm_process_audit',   l: 'RCM Process Audit' },
+  { v: 'fractional_advisory', l: 'Fractional Advisory' },
+  { v: 'technology_vetting',  l: 'Technology Vetting' },
+  { v: 'fractional_se',       l: 'Fractional SE' },
+];
+
+/* ──────────────────────────────────────────────────────
+   HELPERS
+────────────────────────────────────────────────────── */
+function uid() { return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+}
+
+function fmtDT(iso) {
+  if (!iso) return '';
+  const dt = new Date(iso);
+  return dt.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) +
+    ' · ' + dt.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+}
+
+function dateStatus(d) {
+  if (!d) return '';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dd = new Date(d + 'T00:00:00');
+  if (dd < today) return 'overdue';
+  if (dd.getTime() === today.getTime()) return 'due-today';
+  return '';
+}
+
+function isOverdueOrToday(d) { const s = dateStatus(d); return s === 'overdue' || s === 'due-today'; }
+
+function toast(msg, type='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type + ' show';
+  clearTimeout(t._t);
+  t._t = setTimeout(() => { t.className = 'toast'; }, 2800);
+}
+
+/* ──────────────────────────────────────────────────────
+   GITHUB SYNC
+────────────────────────────────────────────────────── */
+const GH = {
+  token: localStorage.getItem(TOKEN_KEY) || '',
+  sha: null,
+  syncing: false,
+
+  b64enc(str) {
+    return btoa(unescape(encodeURIComponent(str)));
+  },
+  b64dec(str) {
+    return decodeURIComponent(escape(atob(str.replace(/\s/g, ''))));
+  },
+
+  headers() {
+    return {
+      'Authorization': `token ${this.token}`,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json',
+    };
+  },
+
+  async load() {
+    if (!this.token) return null;
+    try {
+      const r = await fetch(
+        `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${GH_FILE}`,
+        { headers: this.headers() }
+      );
+      if (r.status === 404) return null; // file doesn't exist yet
+      if (!r.ok) { setSyncStatus('error'); return null; }
+      const j = await r.json();
+      this.sha = j.sha;
+      return JSON.parse(this.b64dec(j.content));
+    } catch (e) {
+      setSyncStatus('error');
+      return null;
+    }
+  },
+
+  async push(data) {
+    if (!this.token || this.syncing) return;
+    this.syncing = true;
+    setSyncStatus('syncing');
+    try {
+      const body = {
+        message: `Update contacts (${new Date().toISOString().slice(0,10)})`,
+        content: this.b64enc(JSON.stringify(data, null, 2)),
+        branch: GH_BRANCH,
+      };
+      if (this.sha) body.sha = this.sha;
+      const r = await fetch(
+        `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${GH_FILE}`,
+        { method: 'PUT', headers: this.headers(), body: JSON.stringify(body) }
+      );
+      if (r.ok) {
+        const j = await r.json();
+        this.sha = j.content.sha;
+        setSyncStatus('synced');
+      } else {
+        const err = await r.json();
+        console.error('GH push error:', err);
+        setSyncStatus('error');
+        toast('Sync failed — check your token in settings', 'err');
+      }
+    } catch {
+      setSyncStatus('error');
+    } finally {
+      this.syncing = false;
+    }
+  },
+
+  async validateToken(token) {
+    const r = await fetch(
+      `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}`,
+      { headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' } }
+    );
+    return r.ok;
+  },
+};
+
+function setSyncStatus(state) {
+  const dot   = document.getElementById('syncDot');
+  const label = document.getElementById('syncLabel');
+  const banner = document.getElementById('syncBanner');
+  if (!dot || !label) return;
+  dot.className = 'sync-dot ' + state;
+  const map = {
+    notoken:  'Not synced',
+    syncing:  'Syncing…',
+    synced:   'Synced',
+    error:    'Sync error',
+    loading:  'Loading…',
+  };
+  label.textContent = map[state] || state;
+  if (banner) banner.style.display = (state === 'notoken') ? 'flex' : 'none';
+}
+
+/* ──────────────────────────────────────────────────────
+   DATA LAYER
+────────────────────────────────────────────────────── */
+let contacts = (() => {
+  try {
+    const r = JSON.parse(localStorage.getItem(STORE_KEY));
+    return Array.isArray(r) ? r : null;
+  } catch { return null; }
+})() || [];
+
+function saveLocal() {
+  localStorage.setItem(STORE_KEY, JSON.stringify(contacts));
+}
+
+function save() {
+  saveLocal();
+  GH.push(contacts); // async, non-blocking
+}
+
+/* ──────────────────────────────────────────────────────
+   RENDER ENGINE
+────────────────────────────────────────────────────── */
+let filtered = [...contacts];
+
+const App = {
+
+  filter() {
+    const q   = document.getElementById('q').value.toLowerCase();
+    const fSt = document.getElementById('fStatus').value;
+    const fTi = document.getElementById('fTier').value;
+    const fSv = document.getElementById('fSvc').value;
+    filtered = contacts.filter(c => {
+      if (q && !(c.fullName + ' ' + c.organization).toLowerCase().includes(q)) return false;
+      if (fSt && c.status !== fSt) return false;
+      if (fTi && c.tier !== fTi) return false;
+      if (fSv && !c.serviceFit.includes(fSv)) return false;
+      return true;
+    });
+    this.renderTable();
+  },
+
+  renderTable() {
+    const tbody = document.getElementById('tbody');
+    const empty = document.getElementById('emptyState');
+    if (!filtered.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    tbody.innerHTML = filtered.map(c => {
+      const t  = TIERS[c.tier]   || { short: c.tier, cls: '' };
+      const st = STATUS[c.status] || { label: c.status };
+      const svcHtml = (c.serviceFit || []).map(v => {
+        const s = SERVICES.find(o => o.v === v);
+        return s ? `<span class="svc">${esc(s.l)}</span>` : '';
+      }).join('');
+      const ds = dateStatus(c.nextFollowup);
+      const fu = c.nextFollowup
+        ? `<span class="${ds}">${fmtDate(c.nextFollowup)}</span>`
+        : `<span class="td-muted">—</span>`;
+      return `
+        <tr onclick="App.openDetail('${esc(c.id)}')">
+          <td>
+            <div class="td-name">${esc(c.fullName)}</div>
+            ${c.organization ? `<div class="td-org">${esc(c.organization)}</div>` : ''}
+          </td>
+          <td class="col-role" style="color:var(--gray-600)">${esc(c.role)||'<span class="td-muted">—</span>'}</td>
+          <td><span class="tier ${t.cls}">${t.short}</span></td>
+          <td><span class="badge s-${c.status}">${st.label}</span></td>
+          <td style="color:var(--gray-600);font-size:13px">${c.lastContacted ? fmtDate(c.lastContacted) : '<span class="td-muted">—</span>'}</td>
+          <td style="font-size:13px">${fu}</td>
+          <td class="col-svc">${svcHtml||'<span class="td-muted">—</span>'}</td>
+        </tr>`;
+    }).join('');
+  },
+
+  renderDash() {
+    const counts = {};
+    Object.keys(STATUS).forEach(k => counts[k] = 0);
+    contacts.forEach(c => { if (counts[c.status] !== undefined) counts[c.status]++; });
+    const overdue = contacts.filter(c => isOverdueOrToday(c.nextFollowup)).length;
+    let h = `
+      <div class="dash-stat"><div class="dash-val">${contacts.length}</div><div class="dash-lbl">Total</div></div>
+      <div class="dash-sep"></div>`;
+    Object.entries(STATUS).forEach(([k, cfg]) => {
+      if (counts[k] > 0) h += `
+        <div class="dash-stat">
+          <div class="dash-val" style="color:${cfg.color}">${counts[k]}</div>
+          <div class="dash-lbl">${cfg.label}</div>
+        </div>`;
+    });
+    if (overdue > 0) h += `
+      <div class="dash-alert" onclick="App.filterOverdue()">
+        <div class="dash-alert-dot"></div>
+        <span><strong>${overdue}</strong> follow-up${overdue>1?'s':''} due or overdue</span>
+      </div>`;
+    document.getElementById('dashBar').innerHTML = h;
+  },
+
+  filterOverdue() {
+    filtered = contacts.filter(c => isOverdueOrToday(c.nextFollowup));
+    this.renderTable();
+  },
+
+  renderAll() { this.filter(); this.renderDash(); },
+
+  /* ── Panel ── */
+  openPanel()  { document.getElementById('overlay').classList.add('open'); document.body.style.overflow = 'hidden'; },
+  closePanel() { document.getElementById('overlay').classList.remove('open'); document.body.style.overflow = ''; },
+  overlayClick(e) { if (e.target === document.getElementById('overlay')) this.closePanel(); },
+
+  /* ── DETAIL ── */
+  openDetail(id) {
+    const c = contacts.find(x => x.id === id);
+    if (!c) return;
+    const t  = TIERS[c.tier]   || { label: c.tier, cls: '' };
+    const st = STATUS[c.status] || { label: c.status };
+    const notesHtml = c.notes && c.notes.length
+      ? c.notes.slice().reverse().map(n => `
+          <div class="note">
+            <div class="note-ts">${esc(fmtDT(n.timestamp))}</div>
+            <div class="note-txt">${esc(n.text)}</div>
+          </div>`).join('')
+      : `<p style="color:var(--gray-300);font-size:13px;font-style:italic">No notes yet.</p>`;
+    const svcHtml = c.serviceFit && c.serviceFit.length
+      ? c.serviceFit.map(v => { const s = SERVICES.find(o=>o.v===v); return s?`<span class="svc" style="font-size:12px;padding:3px 8px">${esc(s.l)}</span>`:''; }).join(' ')
+      : `<span style="color:var(--gray-300);font-size:13px;font-style:italic">None specified</span>`;
+    function df(label, val, link) {
+      const empty = !val;
+      let v = empty ? '—' : esc(val);
+      if (link && val) v = `<a href="${esc(val)}" target="_blank" rel="noopener noreferrer">${esc(val)}</a>`;
+      return `<div class="df"><div class="dl">${label}</div><div class="dv${empty?' empty':''}">${v}</div></div>`;
+    }
+    const ds = dateStatus(c.nextFollowup);
+    document.getElementById('panel').innerHTML = `
+      <div class="ph">
+        <div>
+          <div class="ph-title">${esc(c.fullName)}</div>
+          ${c.organization ? `<div class="ph-sub">${esc(c.organization)}</div>` : ''}
+        </div>
+        <button class="ph-close" onclick="App.closePanel()">✕</button>
+      </div>
+      <div class="pb">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+          <span class="badge s-${c.status}">${st.label}</span>
+          <span class="tier ${t.cls}">${t.label}</span>
+        </div>
+        <div class="ds">
+          <div class="ds-title">Contact Info</div>
+          <div class="dg">
+            ${df('Role / Title', c.role)}
+            ${df('Organization', c.organization)}
+            ${df('Location', c.location)}
+            ${df('Phone', c.phone)}
+            ${df('Email', c.email)}
+            ${df('LinkedIn', c.linkedin, true)}
+          </div>
+        </div>
+        <div class="ds">
+          <div class="ds-title">Pipeline</div>
+          <div class="dg">
+            ${df('Last Contacted', c.lastContacted ? fmtDate(c.lastContacted) : '')}
+            <div class="df"><div class="dl">Next Follow-up</div><div class="dv ${c.nextFollowup ? ds : 'empty'}">${c.nextFollowup ? fmtDate(c.nextFollowup) : '—'}</div></div>
+          </div>
+        </div>
+        <div class="ds">
+          <div class="ds-title">Service Fit</div>
+          ${svcHtml}
+        </div>
+        <div class="ds">
+          <div class="ds-title">Relationship</div>
+          ${df('How We Know Each Other', c.howWeKnow)}
+        </div>
+        <div class="ds">
+          <div class="ds-title">Notes</div>
+          <div class="notes-list" id="notesList">${notesHtml}</div>
+          <div class="note-add">
+            <textarea id="noteInput" placeholder="Add a note…"></textarea>
+            <button class="btn btn-primary btn-sm" onclick="App.addNote('${esc(c.id)}')">Add Note</button>
+          </div>
+        </div>
+      </div>
+      <div class="pf">
+        <button class="btn btn-danger btn-sm" onclick="App.confirmDelete('${esc(c.id)}')">Delete</button>
+        <button class="btn btn-secondary btn-sm" onclick="App.closePanel()">Close</button>
+        <button class="btn btn-primary btn-sm" onclick="App.openEdit('${esc(c.id)}')">Edit</button>
+      </div>`;
+    this.openPanel();
+  },
+
+  addNote(id) {
+    const input = document.getElementById('noteInput');
+    const text = input.value.trim();
+    if (!text) return;
+    const c = contacts.find(x => x.id === id);
+    if (!c) return;
+    if (!c.notes) c.notes = [];
+    c.notes.push({ text, timestamp: new Date().toISOString() });
+    save();
+    input.value = '';
+    const nl = document.getElementById('notesList');
+    if (nl) nl.innerHTML = c.notes.slice().reverse().map(n => `
+      <div class="note">
+        <div class="note-ts">${esc(fmtDT(n.timestamp))}</div>
+        <div class="note-txt">${esc(n.text)}</div>
+      </div>`).join('');
+    toast('Note added.');
+    this.renderDash();
+  },
+
+  /* ── FORM ── */
+  openAdd()  { this._renderForm(null); this.openPanel(); },
+  openEdit(id) { this._renderForm(contacts.find(x => x.id === id)); this.openPanel(); },
+
+  _renderForm(c) {
+    const edit = !!c;
+    c = c || {};
+    const statusOpts = Object.entries(STATUS).map(([k, cfg]) =>
+      `<option value="${k}"${(c.status||'new')===k?' selected':''}>${cfg.label}</option>`).join('');
+    const tierOpts = Object.entries(TIERS).map(([k, t]) =>
+      `<option value="${k}"${(c.tier||'tier1')===k?' selected':''}>${t.label}</option>`).join('');
+    const cbHtml = SERVICES.map(s => {
+      const on = (c.serviceFit||[]).includes(s.v);
+      return `<label class="cb-item${on?' on':''}" onclick="App._cb(this)">
+        <input type="checkbox" name="sf" value="${s.v}"${on?' checked':''}>${esc(s.l)}
+      </label>`;
+    }).join('');
+    document.getElementById('panel').innerHTML = `
+      <div class="ph">
+        <div class="ph-title">${edit ? 'Edit Contact' : 'Add Contact'}</div>
+        <button class="ph-close" onclick="App.closePanel()">✕</button>
+      </div>
+      <div class="pb">
+        <form id="cForm" onsubmit="App._submit(event,'${esc(c.id||'')}')">
+          <div class="fgrid">
+            <div class="fg full">
+              <label class="fl">Full Name <span class="req">*</span></label>
+              <input class="fi" name="fullName" required value="${esc(c.fullName||'')}" placeholder="Full Name">
+            </div>
+            <div class="fg">
+              <label class="fl">Organization</label>
+              <input class="fi" name="organization" value="${esc(c.organization||'')}" placeholder="Company / Practice">
+            </div>
+            <div class="fg">
+              <label class="fl">Role / Title</label>
+              <input class="fi" name="role" value="${esc(c.role||'')}" placeholder="e.g. CEO, Physician">
+            </div>
+            <div class="fg">
+              <label class="fl">Phone</label>
+              <input class="fi" type="tel" name="phone" value="${esc(c.phone||'')}" placeholder="(555) 000-0000">
+            </div>
+            <div class="fg">
+              <label class="fl">Email</label>
+              <input class="fi" type="email" name="email" value="${esc(c.email||'')}" placeholder="name@example.com">
+            </div>
+            <div class="fg full">
+              <label class="fl">LinkedIn URL</label>
+              <input class="fi" type="url" name="linkedin" value="${esc(c.linkedin||'')}" placeholder="https://linkedin.com/in/…">
+            </div>
+            <div class="fg full">
+              <label class="fl">Location</label>
+              <input class="fi" name="location" value="${esc(c.location||'')}" placeholder="City, State">
+            </div>
+            <div class="fg">
+              <label class="fl">Relationship Tier</label>
+              <select class="fs" name="tier">${tierOpts}</select>
+            </div>
+            <div class="fg">
+              <label class="fl">Status</label>
+              <select class="fs" name="status">${statusOpts}</select>
+            </div>
+            <div class="fg full">
+              <label class="fl">Service Fit</label>
+              <div class="cb-group">${cbHtml}</div>
+            </div>
+            <div class="fg full">
+              <label class="fl">How We Know Each Other</label>
+              <input class="fi" name="howWeKnow" value="${esc(c.howWeKnow||'')}" placeholder="College friend, Stanford intro, cold outreach…">
+            </div>
+            <div class="fg">
+              <label class="fl">Last Contacted</label>
+              <input class="fi" type="date" name="lastContacted" value="${esc(c.lastContacted||'')}">
+            </div>
+            <div class="fg">
+              <label class="fl">Next Follow-up</label>
+              <input class="fi" type="date" name="nextFollowup" value="${esc(c.nextFollowup||'')}">
+            </div>
+            ${!edit ? `
+            <div class="fg full">
+              <label class="fl">Initial Note <span style="color:var(--gray-400);font-weight:400">(optional)</span></label>
+              <textarea class="ft" name="initNote" placeholder="Add a note about this contact…"></textarea>
+            </div>` : ''}
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--gray-100)">
+            <button type="button" class="btn btn-secondary" onclick="App.closePanel()">Cancel</button>
+            <button type="submit" class="btn btn-primary">${edit ? 'Save Changes' : 'Add Contact'}</button>
+          </div>
+        </form>
+      </div>`;
+  },
+
+  _cb(label) {
+    const inp = label.querySelector('input');
+    inp.checked = !inp.checked;
+    label.classList.toggle('on', inp.checked);
+  },
+
+  _submit(e, editId) {
+    e.preventDefault();
+    const form = e.target;
+    const fd = new FormData(form);
+    const sf = [...form.querySelectorAll('input[name="sf"]:checked')].map(el => el.value);
+    if (editId) {
+      const c = contacts.find(x => x.id === editId);
+      if (!c) return;
+      c.fullName      = fd.get('fullName').trim();
+      c.organization  = fd.get('organization').trim();
+      c.role          = fd.get('role').trim();
+      c.phone         = fd.get('phone').trim();
+      c.email         = fd.get('email').trim();
+      c.linkedin      = fd.get('linkedin').trim();
+      c.location      = fd.get('location').trim();
+      c.tier          = fd.get('tier');
+      c.status        = fd.get('status');
+      c.serviceFit    = sf;
+      c.howWeKnow     = fd.get('howWeKnow').trim();
+      c.lastContacted = fd.get('lastContacted');
+      c.nextFollowup  = fd.get('nextFollowup');
+      save(); this.renderAll(); this.closePanel(); toast('Contact updated.');
+    } else {
+      const note = fd.get('initNote')?.trim();
+      contacts.unshift({
+        id: uid(),
+        fullName:      fd.get('fullName').trim(),
+        organization:  fd.get('organization').trim(),
+        role:          fd.get('role').trim(),
+        phone:         fd.get('phone').trim(),
+        email:         fd.get('email').trim(),
+        linkedin:      fd.get('linkedin').trim(),
+        location:      fd.get('location').trim(),
+        tier:          fd.get('tier'),
+        status:        fd.get('status') || 'new',
+        serviceFit:    sf,
+        howWeKnow:     fd.get('howWeKnow').trim(),
+        notes:         note ? [{ text: note, timestamp: new Date().toISOString() }] : [],
+        lastContacted: fd.get('lastContacted'),
+        nextFollowup:  fd.get('nextFollowup'),
+        createdAt:     new Date().toISOString(),
+      });
+      save(); this.renderAll(); this.closePanel(); toast('Contact added!');
+    }
+  },
+
+  /* ── DELETE ── */
+  confirmDelete(id) {
+    const c = contacts.find(x => x.id === id);
+    if (!c) return;
+    document.getElementById('confirmMsg').textContent = `Delete "${c.fullName}"? This cannot be undone.`;
+    document.getElementById('confirmOk').onclick = () => this._doDelete(id);
+    document.getElementById('confirmWrap').classList.add('open');
+  },
+  _doDelete(id) {
+    contacts = contacts.filter(x => x.id !== id);
+    save(); this.closeConfirm(); this.closePanel(); this.renderAll();
+    toast('Contact deleted.', 'err');
+  },
+  closeConfirm() { document.getElementById('confirmWrap').classList.remove('open'); },
+
+  /* ── SETTINGS ── */
+  openSettings() {
+    const hasToken = !!GH.token;
+    document.getElementById('panel').innerHTML = `
+      <div class="ph">
+        <div class="ph-title">Settings</div>
+        <button class="ph-close" onclick="App.closePanel()">✕</button>
+      </div>
+      <div class="pb">
+
+        <div class="settings-section">
+          <h3>GitHub Sync</h3>
+          <p>Syncs your contacts to a private GitHub repo so you can access the CRM from any device — phone, tablet, or another computer.</p>
+          ${hasToken ? `
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+              <div class="connected-badge">✓ Connected</div>
+              <button class="btn btn-secondary btn-sm" onclick="App._disconnectGH()">Disconnect</button>
+            </div>
+          ` : `
+            <p>To connect, create a <strong>fine-grained Personal Access Token</strong> on GitHub with access to the <code>rcm-crm</code> repo:</p>
+            <ol>
+              <li>Go to <strong>GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens</strong></li>
+              <li>Click <strong>Generate new token</strong></li>
+              <li>Name it <code>rcm-crm-browser</code>, set expiration to 1 year</li>
+              <li>Under <strong>Repository access</strong> → Only select repositories → choose <code>rcm-crm</code></li>
+              <li>Under <strong>Permissions → Repository → Contents</strong> → Read and write</li>
+              <li>Generate & copy the token</li>
+            </ol>
+            <div class="token-row">
+              <input class="token-input" type="password" id="tokenInput" placeholder="github_pat_…">
+              <button class="btn btn-primary btn-sm" onclick="App._connectGH()">Connect</button>
+            </div>
+            <p style="margin-top:8px;font-size:12px;color:var(--gray-400)">The token is stored only in this browser's local storage and used solely to read/write your contacts.</p>
+          `}
+        </div>
+
+        <div class="settings-section">
+          <h3>Data</h3>
+          <p>${contacts.length} contacts stored. Last synced via GitHub on each save.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-secondary btn-sm" onclick="App._exportJSON()">Export JSON</button>
+            <button class="btn btn-secondary btn-sm" onclick="App._forceSync()">Force sync now</button>
+          </div>
+        </div>
+
+      </div>`;
+    this.openPanel();
+  },
+
+  async _connectGH() {
+    const input = document.getElementById('tokenInput');
+    const token = input ? input.value.trim() : '';
+    if (!token) return toast('Paste your token first.', 'err');
+    toast('Validating…');
+    const ok = await GH.validateToken(token);
+    if (!ok) return toast('Token invalid or repo not accessible. Check permissions.', 'err');
+    GH.token = token;
+    localStorage.setItem(TOKEN_KEY, token);
+    toast('Connected! Syncing contacts now…');
+    this.closePanel();
+    setSyncStatus('syncing');
+    await GH.push(contacts);
+  },
+
+  _disconnectGH() {
+    if (!confirm('Disconnect GitHub sync? Your contacts stay saved locally.')) return;
+    GH.token = '';
+    GH.sha = null;
+    localStorage.removeItem(TOKEN_KEY);
+    setSyncStatus('notoken');
+    this.closePanel();
+    toast('Disconnected.');
+  },
+
+  _exportJSON() {
+    const blob = new Blob([JSON.stringify(contacts, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `rcm-crm-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+  },
+
+  async _forceSync() {
+    if (!GH.token) return toast('Not connected to GitHub. Open ⚙ settings first.', 'err');
+    await GH.push(contacts);
+  },
+};
+
+/* ──────────────────────────────────────────────────────
+   BOOT
+────────────────────────────────────────────────────── */
+async function boot() {
+  if (GH.token) {
+    setSyncStatus('loading');
+    const remote = await GH.load();
+    if (remote && remote.length >= contacts.length) {
+      contacts = remote;
+      saveLocal();
+    }
+    setSyncStatus(GH.sha ? 'synced' : 'error');
+  } else {
+    setSyncStatus('notoken');
+  }
+  App.renderAll();
+}
+
+boot();
+</script>
+</body>
+</html>

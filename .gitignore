@@ -1,0 +1,4 @@
+import.json
+.DS_Store
+*.log
+.claude/
