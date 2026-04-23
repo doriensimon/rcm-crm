@@ -598,6 +598,7 @@ const GH = {
 
   async push(data) {
     if (!this.token || this.syncing) return;
+    if (!data || data.length === 0) return; // never overwrite real data with empty
     this.syncing = true;
     setSyncStatus('syncing');
     try {
