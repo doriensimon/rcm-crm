@@ -909,9 +909,11 @@ const App = {
     Object.keys(STATUS).forEach(k => counts[k] = 0);
     contacts.forEach(c => { if (counts[c.status] !== undefined) counts[c.status]++; });
     const overdue = contacts.filter(c => isOverdueOrToday(c.nextFollowup)).length;
+    const responded = contacts.filter(c => c.outreachResponse === 'responded').length;
     let h = `
       <div class="dash-stat"><div class="dash-val">${contacts.length}</div><div class="dash-lbl">Total</div></div>
-      <div class="dash-sep"></div>`;
+      <div class="dash-sep"></div>
+      ${responded > 0 ? `<div class="dash-stat"><div class="dash-val" style="color:#10B981">${responded}</div><div class="dash-lbl">Responded</div></div><div class="dash-sep"></div>` : ''}`;
     Object.entries(STATUS).forEach(([k, cfg]) => {
       if (counts[k] > 0) h += `
         <div class="dash-stat">
