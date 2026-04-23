@@ -485,7 +485,7 @@
 const STORE_KEY   = 'rcm_crm_v1';
 const TOKEN_KEY   = 'rcm_gh_token';
 const GH_OWNER    = 'doriensimon';
-const GH_REPO     = 'rcm-crm';
+const GH_REPO     = 'rcm-crm-data';
 const GH_FILE     = 'data.json';
 const GH_BRANCH   = 'main';
 
@@ -572,7 +572,7 @@ const GH = {
 
   headers() {
     return {
-      'Authorization': `token ${this.token}`,
+      'Authorization': `Bearer ${this.token}`,
       'Accept': 'application/vnd.github.v3+json',
       'Content-Type': 'application/json',
     };
@@ -629,11 +629,13 @@ const GH = {
   },
 
   async validateToken(token) {
+    // Actually test contents access, not just repo metadata
     const r = await fetch(
-      `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}`,
-      { headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' } }
+      `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${GH_FILE}`,
+      { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github.v3+json' } }
     );
-    return r.ok;
+    // 200 = file exists and readable, 404 = repo accessible but file not yet created — both are OK
+    return r.status === 200 || r.status === 404;
   },
 };
 
@@ -1072,15 +1074,27 @@ const App = {
     const input = document.getElementById('tokenInput');
     const token = input ? input.value.trim() : '';
     if (!token) return toast('Paste your token first.', 'err');
-    toast('Validating…');
+    toast('Validating token…');
     const ok = await GH.validateToken(token);
-    if (!ok) return toast('Token invalid or repo not accessible. Check permissions.', 'err');
+    if (!ok) return toast('Cannot access rcm-crm-data. Check token repo & Contents permission.', 'err');
     GH.token = token;
     localStorage.setItem(TOKEN_KEY, token);
-    toast('Connected! Syncing contacts now…');
     this.closePanel();
-    setSyncStatus('syncing');
-    await GH.push(contacts);
+    setSyncStatus('loading');
+    // Load remote data first (also captures sha needed for future writes)
+    const remote = await GH.load();
+    if (remote && remote.length > 0) {
+      // Remote has data — use it (it's the source of truth)
+      contacts = remote;
+      saveLocal();
+      App.renderAll();
+      setSyncStatus('synced');
+      toast(`Connected! Loaded ${contacts.length} contacts from GitHub.`);
+    } else {
+      // Remote empty or missing — push local data up
+      toast('Connected! Pushing local contacts to GitHub…');
+      await GH.push(contacts);
+    }
   },
 
   _disconnectGH() {
