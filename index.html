@@ -369,6 +369,27 @@
     .contact-detail-entry { display:flex; align-items:baseline; gap:6px; }
     .contact-detail-lbl   { font-size:10px; font-weight:600; text-transform:uppercase; color:var(--gray-400); background:var(--gray-100); padding:1px 5px; border-radius:3px; white-space:nowrap; }
 
+    /* ── Inline editing ─────────────────────────────────── */
+    .editable { cursor: text; border-radius: 4px; padding: 1px 5px; margin: -1px -5px; transition: background .1s; position: relative; }
+    .editable:hover { background: var(--gray-100); }
+    .editable:hover::after { content: ' ✎'; font-size: 10px; color: var(--gray-400); vertical-align: middle; }
+    .inline-input, .inline-date {
+      width: 100%; border: 1.5px solid var(--green); border-radius: 4px;
+      padding: 3px 7px; font-size: 14px; font-family: inherit;
+      color: var(--gray-800); background: white; outline: none;
+      box-shadow: 0 0 0 3px rgba(46,125,107,.1);
+    }
+    .inline-select {
+      border: 1.5px solid var(--green); border-radius: 4px;
+      padding: 4px 8px; font-size: 13px; font-family: inherit;
+      color: var(--gray-800); background: white; outline: none;
+      box-shadow: 0 0 0 3px rgba(46,125,107,.1); cursor: pointer;
+    }
+    .ph .editable:hover { background: rgba(255,255,255,.12); }
+    .ph .editable:hover::after { color: rgba(255,255,255,.4); }
+    .ph .inline-input { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.4); color: white; font-size: 16px; font-weight: 600; box-shadow: none; }
+    .badge.editable:hover::after, .tier.editable:hover::after { content: ' ▾'; font-size: 10px; }
+
     /* ── FAB (mobile add button) ────────────────────────── */
     .fab {
       display: none;
@@ -938,25 +959,35 @@ const App = {
       return `<div class="df"><div class="dl">${label}</div><div class="dv${empty?' empty':''}">${v}</div></div>`;
     }
     const ds = dateStatus(c.nextFollowup);
+    function df(label, val, link, field, inputType='text') {
+      const empty = !val;
+      if (field) {
+        let display = empty ? '<span style="color:var(--gray-300);font-style:italic">—</span>' : esc(val);
+        if (link && val) display = `<a href="${esc(val)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${esc(val)}</a>`;
+        return `<div class="df"><div class="dl">${label}</div><div class="dv editable${empty?' empty':''}" onclick="App.inlineEdit(this,'${esc(c.id)}','${field}','${inputType}')">${display}</div></div>`;
+      }
+      const v = empty ? '—' : (link && val ? `<a href="${esc(val)}" target="_blank" rel="noopener noreferrer">${esc(val)}</a>` : esc(val));
+      return `<div class="df"><div class="dl">${label}</div><div class="dv${empty?' empty':''}">${v}</div></div>`;
+    }
     document.getElementById('panel').innerHTML = `
       <div class="ph">
-        <div>
-          <div class="ph-title">${esc(c.fullName)}</div>
+        <div style="flex:1;min-width:0">
+          <div class="ph-title editable" onclick="App.inlineEdit(this,'${esc(c.id)}','fullName')">${esc(c.fullName)}</div>
           ${c.organization ? `<div class="ph-sub">${esc(c.organization)}</div>` : ''}
         </div>
         <button class="ph-close" onclick="App.closePanel()">✕</button>
       </div>
       <div class="pb">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
-          <span class="badge s-${c.status}">${st.label}</span>
-          <span class="tier ${t.cls}">${t.label}</span>
+          <span class="badge s-${c.status} editable" onclick="App.inlineEdit(this,'${esc(c.id)}','status','select-status')" title="Click to change status">${st.label}</span>
+          <span class="tier ${t.cls} editable" onclick="App.inlineEdit(this,'${esc(c.id)}','tier','select-tier')" title="Click to change tier">${t.label}</span>
         </div>
         <div class="ds">
           <div class="ds-title">Contact Info</div>
           <div class="dg">
-            ${df('Role / Title', c.role)}
-            ${df('Organization', c.organization)}
-            ${df('Location', c.location)}
+            ${df('Role / Title', c.role, false, 'role')}
+            ${df('Organization', c.organization, false, 'organization')}
+            ${df('Location', c.location, false, 'location')}
             <div class="df">
               <div class="dl">Phone</div>
               ${c.phones && c.phones.length
@@ -969,7 +1000,7 @@ const App = {
                 ? `<div class="contact-detail-multi">${c.emails.map(e=>`<div class="contact-detail-entry"><span class="contact-detail-lbl">${esc(e.label)}</span><span class="dv">${esc(e.value)}</span></div>`).join('')}</div>`
                 : '<div class="dv empty">—</div>'}
             </div>
-            ${df('LinkedIn', c.linkedin, true)}
+            ${df('LinkedIn', c.linkedin, true, 'linkedin', 'url')}
           </div>
         </div>
         <div class="ds">
@@ -977,7 +1008,7 @@ const App = {
           <div class="dg">
             <div class="df">
               <div class="dl">Last Contacted</div>
-              <div class="dv ${!c.lastContacted ? 'empty' : ''}">${c.lastContacted ? fmtDate(c.lastContacted) : '—'}</div>
+              <div class="dv editable ${!c.lastContacted ? 'empty' : ''}" onclick="App.inlineEdit(this,'${esc(c.id)}','lastContacted','date')">${c.lastContacted ? fmtDate(c.lastContacted) : '—'}</div>
             </div>
             <div class="df full">
               <div class="dl">Contact Method</div>
@@ -999,7 +1030,7 @@ const App = {
                 }).join('')}
               </div>
             </div>
-            <div class="df"><div class="dl">Next Follow-up</div><div class="dv ${c.nextFollowup ? ds : 'empty'}">${c.nextFollowup ? fmtDate(c.nextFollowup) : '—'}</div></div>
+            <div class="df"><div class="dl">Next Follow-up</div><div class="dv editable ${c.nextFollowup ? ds : 'empty'}" onclick="App.inlineEdit(this,'${esc(c.id)}','nextFollowup','date')">${c.nextFollowup ? fmtDate(c.nextFollowup) : '—'}</div></div>
           </div>
         </div>
         <div class="ds">
@@ -1008,7 +1039,7 @@ const App = {
         </div>
         <div class="ds">
           <div class="ds-title">Relationship</div>
-          ${df('How We Know Each Other', c.howWeKnow)}
+          ${df('How We Know Each Other', c.howWeKnow, false, 'howWeKnow')}
         </div>
         <div class="ds">
           <div class="ds-title">Notes</div>
@@ -1025,6 +1056,54 @@ const App = {
         <button class="btn btn-primary btn-sm" onclick="App.openEdit('${esc(c.id)}')">Edit</button>
       </div>`;
     this.openPanel();
+  },
+
+  inlineEdit(el, id, field, inputType = 'text') {
+    if (el.querySelector('input,textarea,select')) return; // already editing
+    const c = contacts.find(x => x.id === id);
+    if (!c) return;
+    const currentVal = c[field] || '';
+
+    if (inputType === 'select-status' || inputType === 'select-tier') {
+      const entries = inputType === 'select-status' ? Object.entries(STATUS) : Object.entries(TIERS);
+      const opts = entries.map(([k, v]) =>
+        `<option value="${k}"${k === currentVal ? ' selected' : ''}>${v.label || v.short}</option>`).join('');
+      el.innerHTML = `<select class="inline-select">${opts}</select>`;
+      const sel = el.querySelector('select');
+      sel.focus();
+      let saved = false;
+      const doSave = () => { if (!saved) { saved = true; this._saveInline(id, field, sel.value, el); } };
+      sel.onchange = doSave;
+      sel.onblur = doSave;
+      sel.onkeydown = e => { if (e.key === 'Escape') { saved = true; this.openDetail(id); } };
+      return;
+    }
+
+    const tag = inputType === 'textarea' ? 'textarea' : 'input';
+    const inp = document.createElement(tag);
+    inp.className = inputType === 'date' ? 'inline-date' : 'inline-input';
+    if (tag === 'input') inp.type = inputType;
+    if (tag === 'textarea') inp.rows = 2;
+    inp.value = currentVal;
+    el.textContent = '';
+    el.appendChild(inp);
+    inp.focus();
+    if (inp.type !== 'date') inp.select();
+
+    let saved = false;
+    const doSave = () => { if (!saved) { saved = true; this._saveInline(id, field, inp.value.trim(), el); } };
+    inp.onblur = doSave;
+    inp.onkeydown = e => {
+      if (e.key === 'Enter' && tag !== 'textarea') { e.preventDefault(); inp.blur(); }
+      if (e.key === 'Escape') { saved = true; this.openDetail(id); }
+    };
+  },
+
+  _saveInline(id, field, value, el) {
+    const c = contacts.find(x => x.id === id);
+    if (!c) return;
+    if (c[field] !== value) { c[field] = value; save(); this.renderAll(); }
+    this.openDetail(id);
   },
 
   setContactMethod(id, value) {
