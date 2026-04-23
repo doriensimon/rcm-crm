@@ -1105,7 +1105,11 @@ const App = {
   _saveInline(id, field, value, el) {
     const c = contacts.find(x => x.id === id);
     if (!c) return;
-    if (c[field] !== value) { c[field] = value; save(); this.renderAll(); }
+    if (c[field] !== value) {
+      c[field] = value;
+      if (field === 'lastContacted' && value && c.status === 'new') c.status = 'reached_out';
+      save(); this.renderAll();
+    }
     this.openDetail(id);
   },
 
@@ -1314,6 +1318,7 @@ const App = {
       c.contactMethod     = fd.get('contactMethod');
       c.nextFollowup      = fd.get('nextFollowup');
       c.outreachResponse  = fd.get('outreachResponse');
+      if (c.lastContacted && c.status === 'new') c.status = 'reached_out';
       save(); this.renderAll(); this.closePanel(); toast('Contact updated.');
     } else {
       const note = fd.get('initNote')?.trim();
@@ -1327,7 +1332,7 @@ const App = {
         linkedin:      fd.get('linkedin').trim(),
         location:      fd.get('location').trim(),
         tier:          fd.get('tier'),
-        status:        fd.get('status') || 'new',
+        status:        (() => { const s = fd.get('status') || 'new'; const d = fd.get('lastContacted'); return s === 'new' && d ? 'reached_out' : s; })(),
         serviceFit:    sf,
         howWeKnow:     fd.get('howWeKnow').trim(),
         notes:         note ? [{ text: note, timestamp: new Date().toISOString() }] : [],
