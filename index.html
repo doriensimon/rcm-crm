@@ -338,6 +338,41 @@
     .toast.ok  { border-left:4px solid var(--green); }
     .toast.err { border-left:4px solid #EF4444; }
 
+    /* ── Email draft modal ───────────────────────────────── */
+    .email-wrap {
+      position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      z-index: 600; display: none; align-items: center; justify-content: center; padding: 16px;
+    }
+    .email-wrap.open { display: flex; }
+    .email-box {
+      background: white; border-radius: 12px; width: 100%; max-width: 620px;
+      max-height: 92vh; display: flex; flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    }
+    .email-head {
+      padding: 16px 20px; border-bottom: 1px solid var(--gray-200);
+      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+    }
+    .email-head h3 { font-size: 16px; font-weight: 600; color: var(--gray-800); }
+    .email-head p  { font-size: 12px; color: var(--gray-400); margin-top: 2px; }
+    .email-body { padding: 16px 20px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+    .email-row { display: flex; flex-direction: column; gap: 4px; }
+    .email-lbl { font-size: 11px; font-weight: 600; color: var(--gray-400); text-transform: uppercase; letter-spacing: .3px; }
+    .email-row input { width: 100%; padding: 7px 10px; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 14px; font-family: inherit; color: var(--gray-800); outline: none; }
+    .email-row input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(46,125,107,.1); }
+    .email-row textarea { width: 100%; min-height: 280px; padding: 9px 10px; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 14px; font-family: inherit; color: var(--gray-800); outline: none; resize: vertical; line-height: 1.65; }
+    .email-row textarea:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(46,125,107,.1); }
+    .email-notes-ref { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 6px; padding: 10px 12px; }
+    .email-notes-ref strong { font-size: 11px; font-weight: 600; color: var(--gray-400); text-transform: uppercase; letter-spacing: .3px; display: block; margin-bottom: 6px; }
+    .email-notes-ref .note-item { font-size: 13px; color: var(--gray-600); line-height: 1.5; padding: 4px 0; border-bottom: 1px solid var(--gray-200); }
+    .email-notes-ref .note-item:last-child { border-bottom: none; }
+    .email-notes-ref .note-ts { font-size: 11px; color: var(--gray-400); }
+    .email-foot {
+      padding: 12px 20px; border-top: 1px solid var(--gray-200);
+      display: flex; gap: 8px; justify-content: flex-end; background: var(--gray-50);
+      border-radius: 0 0 12px 12px; flex-shrink: 0;
+    }
+
     /* ── Confirm ─────────────────────────────────────────── */
     .confirm-wrap {
       position:fixed; inset:0; background:rgba(0,0,0,.5);
@@ -574,6 +609,41 @@
 <!-- ═══ SLIDE-OVER PANEL ════════════════════════════════════ -->
 <div class="overlay" id="overlay" onclick="App.overlayClick(event)">
   <div class="panel" id="panel"></div>
+</div>
+
+<!-- ═══ EMAIL DRAFT MODAL ═══════════════════════════════════ -->
+<div class="email-wrap" id="emailWrap" onclick="App._emailOverlayClick(event)">
+  <div class="email-box">
+    <div class="email-head">
+      <div>
+        <h3>Draft Email</h3>
+        <p>Edit below, then open in Gmail to save as a draft.</p>
+      </div>
+      <button class="ph-close" style="color:var(--gray-500)" onclick="App.closeEmailModal()">✕</button>
+    </div>
+    <div class="email-body">
+      <div class="email-row">
+        <div class="email-lbl">To</div>
+        <input id="emailTo" type="text" placeholder="email@example.com">
+      </div>
+      <div class="email-row">
+        <div class="email-lbl">Subject</div>
+        <input id="emailSubject" type="text">
+      </div>
+      <div class="email-row">
+        <div class="email-lbl">Body</div>
+        <textarea id="emailBody"></textarea>
+      </div>
+      <div id="emailNotesRef" class="email-notes-ref" style="display:none">
+        <strong>📋 Your notes (for reference — not included in email)</strong>
+        <div id="emailNotesList"></div>
+      </div>
+    </div>
+    <div class="email-foot">
+      <button class="btn btn-secondary btn-sm" onclick="App.closeEmailModal()">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="App._openInGmail()">Open in Gmail →</button>
+    </div>
+  </div>
 </div>
 
 <!-- ═══ CONFIRM DIALOG ══════════════════════════════════════ -->
@@ -1058,6 +1128,7 @@ const App = {
       <div class="pf">
         <button class="btn btn-danger btn-sm" onclick="App.confirmDelete('${esc(c.id)}')">Delete</button>
         <button class="btn btn-secondary btn-sm" onclick="App.closePanel()">Close</button>
+        <button class="btn btn-secondary btn-sm" onclick="App.draftEmail('${esc(c.id)}')">✉ Draft Email</button>
         <button class="btn btn-primary btn-sm" onclick="App.openEdit('${esc(c.id)}')">Edit</button>
       </div>`;
     this.openPanel();
@@ -1346,6 +1417,84 @@ const App = {
       });
       save(); this.renderAll(); this.closePanel(); toast('Contact added!');
     }
+  },
+
+  /* ── EMAIL DRAFT ── */
+  draftEmail(id) {
+    const c = contacts.find(x => x.id === id);
+    if (!c) return;
+
+    const toList = (c.emails || []).map(e => e.value).filter(Boolean);
+    if (!toList.length) { toast('No email address on file for this contact.', 'err'); return; }
+
+    const firstName = c.fullName.split(' ')[0];
+    const notesText = (c.notes || []).map(n => n.text).join(' ').toLowerCase();
+
+    // Sport detection → add athlete paragraph
+    const sportMap = {
+      fenc: 'Fencer', tennis: 'Tennis player', swim: 'Swimmer', row: 'Rower',
+      crew: 'Crew athlete', lacrosse: 'Lacrosse player', soccer: 'Soccer player',
+      basketball: 'Basketball player', volleyball: 'Volleyball player', golf: 'Golfer',
+      baseball: 'Baseball player', softball: 'Softball player', rugby: 'Rugby player',
+      hockey: 'Hockey player', wrestling: 'Wrestler', squash: 'Squash player',
+      'water polo': 'Water polo player', gymnastics: 'Gymnast', track: 'Track athlete',
+      'cross country': 'Cross country runner', cycling: 'Cyclist', skiing: 'Skier',
+    };
+    const matchedSport = Object.keys(sportMap).find(k => notesText.includes(k));
+    const sportPara = matchedSport
+      ? ` I also peeped you were a ${sportMap[matchedSport]} at Stanford. I was a short sprinter on the Men's track team so it's cool connecting with another athlete.`
+      : '';
+
+    // Career help → tweak meeting line
+    const wantsCareer = ['career', 'job search', 'job hunt', 'looking for a job', 'career advice'].some(k => notesText.includes(k));
+    const meetingLine = wantsCareer
+      ? `I'd love to meet up for coffee to hear more about your career journey and share what I'm working on.`
+      : `I'd love to meet up for coffee to hear more about your experience on the clinical side and share what I'm working on.`;
+
+    const body =
+`Hey ${firstName},
+
+I found you through the Stanford alumni directory. I saw you were also based in Seattle and wanted to reach out.${sportPara}
+
+I recently left a role at a healthcare AI company and I'm launching an RCM consulting practice helping practices find revenue leakage and fix their billing operations. I'm spending time talking to people in the healthcare community here to learn and build relationships.
+
+${meetingLine}
+
+What's a good day for you in the next few weeks?
+
+Talk soon,
+Simon`;
+
+    document.getElementById('emailTo').value = toList.join(', ');
+    document.getElementById('emailSubject').value = `Coffee chat?`;
+    document.getElementById('emailBody').value = body;
+
+    // Surface notes as reference
+    const notes = (c.notes || []).slice().reverse();
+    const notesRef = document.getElementById('emailNotesRef');
+    const notesList = document.getElementById('emailNotesList');
+    if (notes.length) {
+      notesList.innerHTML = notes.map(n =>
+        `<div class="note-item"><div class="note-ts">${esc(fmtDT(n.timestamp))}</div>${esc(n.text)}</div>`
+      ).join('');
+      notesRef.style.display = 'block';
+    } else {
+      notesRef.style.display = 'none';
+    }
+
+    document.getElementById('emailWrap').classList.add('open');
+  },
+
+  closeEmailModal() { document.getElementById('emailWrap').classList.remove('open'); },
+  _emailOverlayClick(e) { if (e.target === document.getElementById('emailWrap')) this.closeEmailModal(); },
+
+  _openInGmail() {
+    const to      = document.getElementById('emailTo').value.trim();
+    const subject = document.getElementById('emailSubject').value.trim();
+    const body    = document.getElementById('emailBody').value;
+    const url = `https://mail.google.com/mail/u/0/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(url, '_blank');
+    this.closeEmailModal();
   },
 
   /* ── DELETE ── */
