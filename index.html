@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RCM Agency CRM</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -641,7 +642,7 @@
     </div>
     <div class="email-foot">
       <button class="btn btn-secondary btn-sm" onclick="App.closeEmailModal()">Cancel</button>
-      <button class="btn btn-primary btn-sm" onclick="App._openInGmail()">Open in Gmail →</button>
+      <button class="btn btn-primary btn-sm" onclick="App._createGmailDraft()">Save to Gmail Drafts</button>
     </div>
   </div>
 </div>
@@ -668,8 +669,9 @@
 /* ──────────────────────────────────────────────────────
    CONSTANTS
 ────────────────────────────────────────────────────── */
-const STORE_KEY   = 'rcm_crm_v1';
-const TOKEN_KEY   = 'rcm_gh_token';
+const STORE_KEY    = 'rcm_crm_v1';
+const TOKEN_KEY    = 'rcm_gh_token';
+const GMAIL_KEY    = 'rcm_gmail_client_id';
 const GH_OWNER    = 'doriensimon';
 const GH_REPO     = 'rcm-crm-data';
 const GH_FILE     = 'data.json';
@@ -1488,13 +1490,51 @@ Simon`;
   closeEmailModal() { document.getElementById('emailWrap').classList.remove('open'); },
   _emailOverlayClick(e) { if (e.target === document.getElementById('emailWrap')) this.closeEmailModal(); },
 
-  _openInGmail() {
+  _createGmailDraft() {
+    const clientId = localStorage.getItem(GMAIL_KEY);
+    if (!clientId) {
+      toast('Add your Gmail Client ID in ⚙ Settings first.', 'err');
+      return;
+    }
+    if (typeof google === 'undefined') {
+      toast('Google auth library not loaded yet — try again in a moment.', 'err');
+      return;
+    }
     const to      = document.getElementById('emailTo').value.trim();
     const subject = document.getElementById('emailSubject').value.trim();
     const body    = document.getElementById('emailBody').value;
-    const url = `https://mail.google.com/mail/u/0/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(url, '_blank');
-    this.closeEmailModal();
+    toast('Authenticating with Gmail…');
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: 'https://www.googleapis.com/auth/gmail.compose',
+      callback: async (resp) => {
+        if (resp.error) { toast('Gmail auth failed: ' + resp.error, 'err'); return; }
+        await this._sendDraftAPI(resp.access_token, to, subject, body);
+      },
+    });
+    client.requestAccessToken();
+  },
+
+  async _sendDraftAPI(token, to, subject, body) {
+    // Build RFC 2822 message and base64url-encode it
+    const raw = [`To: ${to}`, `Subject: ${subject}`, `Content-Type: text/plain; charset=UTF-8`, ``, body].join('\r\n');
+    const encoded = btoa(unescape(encodeURIComponent(raw))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    try {
+      const r = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/drafts', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: { raw: encoded } }),
+      });
+      if (r.ok) {
+        toast('Draft saved to Gmail! ✓');
+        this.closeEmailModal();
+      } else {
+        const err = await r.json();
+        toast('Gmail error: ' + (err.error?.message || 'Unknown'), 'err');
+      }
+    } catch (e) {
+      toast('Network error saving draft.', 'err');
+    }
   },
 
   /* ── DELETE ── */
@@ -1549,6 +1589,31 @@ Simon`;
         </div>
 
         <div class="settings-section">
+          <h3>Gmail Drafts</h3>
+          <p>Connect Gmail so the "Draft Email" button saves directly to your Gmail drafts — no manual steps.</p>
+          ${localStorage.getItem(GMAIL_KEY) ? `
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+              <div class="connected-badge">✓ Gmail Connected</div>
+              <button class="btn btn-secondary btn-sm" onclick="App._disconnectGmail()">Disconnect</button>
+            </div>
+          ` : `
+            <p>One-time setup in Google Cloud Console:</p>
+            <ol>
+              <li>Go to <strong>console.cloud.google.com</strong> → create a project</li>
+              <li>Enable the <strong>Gmail API</strong></li>
+              <li>Configure OAuth consent screen → add your email as a test user</li>
+              <li><strong>Credentials → Create → OAuth 2.0 Client ID</strong> → Web application</li>
+              <li>Add <code>https://doriensimon.github.io</code> as an Authorized JavaScript origin</li>
+              <li>Copy the <strong>Client ID</strong> and paste it below</li>
+            </ol>
+            <div class="token-row">
+              <input class="token-input" type="text" id="gmailClientInput" placeholder="1234567890-abc….apps.googleusercontent.com">
+              <button class="btn btn-primary btn-sm" onclick="App._connectGmail()">Connect</button>
+            </div>
+          `}
+        </div>
+
+        <div class="settings-section">
           <h3>Data</h3>
           <p>${contacts.length} contacts stored. Last synced via GitHub on each save.</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -1586,6 +1651,21 @@ Simon`;
       toast('Connected! Pushing local contacts to GitHub…');
       await GH.push(contacts);
     }
+  },
+
+  _connectGmail() {
+    const input = document.getElementById('gmailClientInput');
+    const id = input ? input.value.trim() : '';
+    if (!id) return toast('Paste your Client ID first.', 'err');
+    localStorage.setItem(GMAIL_KEY, id);
+    this.closePanel();
+    toast('Gmail connected! Open a contact and tap ✉ Draft Email to try it.');
+  },
+
+  _disconnectGmail() {
+    localStorage.removeItem(GMAIL_KEY);
+    this.openSettings();
+    toast('Gmail disconnected.');
   },
 
   _disconnectGH() {
